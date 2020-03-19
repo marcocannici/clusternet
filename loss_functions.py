@@ -1,7 +1,8 @@
 import torch
 
 def loss_modularity(mu, r, embeds, dist, bin_adj, mod, args):
-    bin_adj_nodiag = bin_adj*(torch.ones(bin_adj.shape[0], bin_adj.shape[0]) - torch.eye(bin_adj.shape[0]))
+    bin_adj_nodiag = bin_adj*(bin_adj.new_ones(bin_adj.shape[0], bin_adj.shape[0])
+                              - torch.eye(bin_adj.shape[0], device=bin_adj.device))
     return (1./bin_adj_nodiag.sum()) * (r.t() @ mod @ r).trace()
 
 def loss_kcenter(mu, r, embeds, dist, bin_adj, obj, args):

@@ -21,7 +21,7 @@ class GCN(nn.Module):
         x = F.dropout(x, self.dropout, training=self.training)
         x = self.gc2(x, adj)
         return x
-    
+
 def cluster(data, k, temp, num_iter, init = None, cluster_temp=5):
     '''
     pytorch (differentiable) implementation of soft k-means clustering.
@@ -38,10 +38,10 @@ def cluster(data, k, temp, num_iter, init = None, cluster_temp=5):
     mu = init
     n = data.shape[0]
     d = data.shape[1]
-#    data = torch.diag(1./torch.norm(data, dim=1, p=2))@data
+    #    data = torch.diag(1./torch.norm(data, dim=1, p=2))@data
     for t in range(num_iter):
         #get distances between all data points and cluster centers
-#        dist = torch.cosine_similarity(data[:, None].expand(n, k, d).reshape((-1, d)), mu[None].expand(n, k, d).reshape((-1, d))).reshape((n, k))
+        #        dist = torch.cosine_similarity(data[:, None].expand(n, k, d).reshape((-1, d)), mu[None].expand(n, k, d).reshape((-1, d))).reshape((n, k))
         dist = data @ mu.t()
         #cluster responsibilities via softmax
         r = torch.softmax(cluster_temp*dist, 1)
@@ -74,14 +74,14 @@ class GCNClusterNet(nn.Module):
         self.sigmoid = nn.Sigmoid()
         self.K = K
         self.cluster_temp = cluster_temp
-        self.init =  torch.rand(self.K, nout)
-        
+        self.register_buffer('init', torch.rand(self.K, nout))
+
     def forward(self, x, adj, num_iter=1):
         embeds = self.GCN(x, adj)
         mu_init, _, _ = cluster(embeds, self.K, 1, num_iter, cluster_temp = self.cluster_temp, init = self.init)
         mu, r, dist = cluster(embeds, self.K, 1, 1, cluster_temp = self.cluster_temp, init = mu_init.detach().clone())
         return mu, r, embeds, dist
-    
+
 class GCNDeep(nn.Module):
     '''
     A stack of nlayers GCNs. The first maps nfeat -> nhid features, the 
@@ -106,7 +106,7 @@ class GCNDeep(nn.Module):
         x = self.gcend(x, adj)
 
         return x
-    
+
 
 class GCNDeepSigmoid(nn.Module):
     '''
@@ -136,7 +136,7 @@ class GCNDeepSigmoid(nn.Module):
         return x
 
 
-    
+
 class GCNLink(nn.Module):
     '''
     GCN link prediction model based on:
@@ -151,7 +151,7 @@ class GCNLink(nn.Module):
         self.GCN = GCN(nfeat, nhid, nout, dropout)
         self.distmult = nn.Parameter(torch.rand(nout))
         self.sigmoid = nn.Sigmoid()
-    
+
     def forward(self, x, adj, to_pred):
         embeds = self.GCN(x, adj)
         dot = (embeds[to_pred[:, 0]]*self.distmult.expand(to_pred.shape[0], self.distmult.shape[0])*embeds[to_pred[:, 1]]).sum(dim=1)

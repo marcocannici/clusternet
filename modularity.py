@@ -11,23 +11,23 @@ import scipy as sp
 import scipy.linalg
 
 def make_modularity_matrix(adj):
-    adj = adj*(torch.ones(adj.shape[0], adj.shape[0]) - torch.eye(adj.shape[0]))
+    adj = adj*(adj.new_ones(adj.shape[0], adj.shape[0]) - torch.eye(adj.shape[0], device=adj.device))
     degrees = adj.sum(dim=0).unsqueeze(1)
     mod = adj - degrees@degrees.t()/adj.sum()
     return mod
 
 def make_modularity_matrix_nodiag(adj):
-    adj = adj*(torch.ones(adj.shape[0], adj.shape[0]) - torch.eye(adj.shape[0]))
+    adj = adj*(adj.new_ones(adj.shape[0], adj.shape[0]) - torch.eye(adj.shape[0], device=adj.device))
     degrees = adj.sum(dim=0).unsqueeze(1)
     mod = adj - degrees@degrees.t()/adj.sum()
     return mod
 
 def baseline_spectral(mod, K):
     import sklearn
-    B = mod.detach().numpy()
+    B = mod.cpu().detach().numpy()
     w, v = sp.linalg.eigh(B, eigvals=(B.shape[0] - 1 - K, B.shape[0]-1))
     part = sklearn.cluster.k_means(v, K)[1]
-    r = torch.zeros(B.shape[0], K)
+    r = mod.new_zeros(B.shape[0], K)
     for i in range(mod.shape[0]):
         r[i, part[i]] = 1
     return r
@@ -37,7 +37,7 @@ def baseline_spectral(mod, K):
 #  Added changes to handle weighted networks and terminate with a given number of
 #  communities
 
-def greedy_modularity_communities(G, K, weight=None):
+def greedy_modularity_communities(G_preds, K, weight=None):
     """Find communities in graph using Clauset-Newman-Moore greedy modularity
     maximization. This method currently supports the Graph class and does not
     consider edge weights.
@@ -70,7 +70,7 @@ def greedy_modularity_communities(G, K, weight=None):
        "Finding community structure in very large networks."
        Physical Review E 70(6), 2004.
     """
-    G = nx.from_numpy_array(G.detach().numpy(), create_using = nx.DiGraph())
+    G = nx.from_numpy_array(G_preds.cpu().detach().numpy(), create_using = nx.DiGraph())
     # Count nodes and edges
     N = len(G.nodes())
     m = sum([d.get('weight', 1) for u, v, d in G.edges(data=True)])
@@ -249,8 +249,8 @@ def greedy_modularity_communities(G, K, weight=None):
         com1.update(com2)
         heapq.heappush(heap, (weight1+weight2, com1))
     communities = [x[1] for x in heap]
-    r = torch.zeros(N, K)
-    print(len(communities))
+    r = G_preds.new_zeros(N, K)
+    print("num communities", len(communities))
     for i,c in enumerate(communities):
         for v in c:
             r[v, i] = 1
@@ -287,7 +287,7 @@ def partition(adj, K, refine=False):
         Key: node label; Value: community index
     '''
     ## preprocessing
-    network = nx.from_numpy_array(adj.detach().numpy(), create_using = nx.DiGraph())
+    network = nx.from_numpy_array(adj.cpu().detach().numpy(), create_using = nx.DiGraph())
 #    network = nx.convert_node_labels_to_integers(network, first_label=1, label_attribute="node_name")
 
     B = get_base_modularity_matrix(network)
@@ -326,7 +326,7 @@ def partition(adj, K, refine=False):
             community_dict[u] = comm_counter
         divisible_community.append(comm_counter)
         comm_counter += 1
-    r = torch.zeros(B.shape[0], K)
+    r = adj.new_zeros(B.shape[0], K)
     for i in range(B.shape[0]):
         r[i, community_dict[i]] = 1
     return r

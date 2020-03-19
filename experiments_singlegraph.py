@@ -13,7 +13,7 @@ from loss_functions import loss_kcenter, loss_modularity
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--no-cuda', action='store_true', default=True,
+parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='Disables CUDA training.')
 parser.add_argument('--seed', type=int, default=24, help='Random seed.')
 parser.add_argument('--lr', type=float, default=0.01,
@@ -170,8 +170,16 @@ optimizer = optim.Adam(model_cluster.parameters(),
 if args.cuda:
     model_cluster.cuda()
     model_ts.cuda()
-    features = features.cuda()
+    model_gcn.cuda()
+    model_gcn_x.cuda()
+    features_test = features_test.cuda()
+    features_train = features_train.cuda()
+    bin_adj_train = bin_adj_train.cuda()
+    bin_adj_test = bin_adj_test.cuda()
+    bin_adj_valid = bin_adj_valid.cuda()
+    bin_adj_all = bin_adj_all.cuda()
     adj_train = adj_train.cuda()
+    adj_all = adj_all.cuda()
     labels = labels.cuda()
     idx_train = idx_train.cuda()
     idx_val = idx_val.cuda()
@@ -343,14 +351,14 @@ if run_ts:
 
     if args.objective == 'modularity':
         r = greedy_modularity_communities(preds, K)
-        print('agglomerative', loss_fn(None, r, None, None, bin_adj_all, test_object, args))
+        print('agglomerative', loss_fn(None, r, None, None, bin_adj_all, test_object, args).item())
         r = partition(preds, K)
-        print('recursive', loss_fn(None, r, None, None, bin_adj_all, test_object, args))
+        print('recursive', loss_fn(None, r, None, None, bin_adj_all, test_object, args).item())
         degrees = preds.sum(dim=1)
         preds = torch.diag(1./degrees)@preds
         mod_pred = make_modularity_matrix(preds)
         r = baseline_spectral(mod_pred, K)
-        print('spectral', loss_fn(None, r, None, None, bin_adj_all, test_object, args))
+        print('spectral', loss_fn(None, r, None, None, bin_adj_all, test_object, args).item())
     elif args.objective == 'kcenter':
         try:
             dist_ts = torch.load('{}_twostage_dist.pt'.format(args.dataset))
@@ -454,14 +462,14 @@ if run_train_only:
     if args.objective == 'modularity':
         preds = bin_adj_train
         r = greedy_modularity_communities(preds, K)
-        print('agglomerative', loss_fn(None, r, None, None, bin_adj_all, test_object, args))
+        print('agglomerative', loss_fn(None, r, None, None, bin_adj_all, test_object, args).item())
         r = partition(preds, K)
-        print('recursive', loss_fn(None, r, None, None, bin_adj_all, test_object, args))
+        print('recursive', loss_fn(None, r, None, None, bin_adj_all, test_object, args).item())
         degrees = preds.sum(dim=1)
         preds = torch.diag(1./degrees)@preds
         mod_pred = make_modularity_matrix(preds)
         r = baseline_spectral(mod_pred, K)
-        print('spectral', loss_fn(None, r, None, None, bin_adj_all, test_object, args))
+        print('spectral', loss_fn(None, r, None, None, bin_adj_all, test_object, args).item())
     elif args.objective == 'kcenter':
         x = gonzalez_kcenter(dist_train, K)
         print('gonzalez train', obj_test(x))
@@ -477,14 +485,14 @@ if calculate_opt:
     if args.objective == 'modularity':
         preds = bin_adj_all
         r = greedy_modularity_communities(preds, K)
-        print('agglomerative', loss_fn(None, r, None, None, bin_adj_all, test_object, args))
+        print('agglomerative', loss_fn(None, r, None, None, bin_adj_all, test_object, args).item())
         r = partition(preds, K)
-        print('recursive', loss_fn(None, r, None, None, bin_adj_all, test_object, args))
+        print('recursive', loss_fn(None, r, None, None, bin_adj_all, test_object, args).item())
         degrees = preds.sum(dim=1)
         preds = torch.diag(1./degrees)@preds
         mod_pred = make_modularity_matrix(preds)
         r = baseline_spectral(mod_pred, K)
-        print('spectral', loss_fn(None, r, None, None, bin_adj_all, test_object, args))
+        print('spectral', loss_fn(None, r, None, None, bin_adj_all, test_object, args).item())
     elif args.objective == 'kcenter':
         x = gonzalez_kcenter(dist_all, K)
         print('gonzalez all', obj_test(x))

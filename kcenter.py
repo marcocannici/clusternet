@@ -73,7 +73,7 @@ def greedy_kcenter(dist, dmax, K):
     return x
 
 def make_all_dists(bin_adj, dmax, use_weights=False):
-    g = nx.from_numpy_array(bin_adj.detach().numpy())
+    g = nx.from_numpy_array(bin_adj.cpu().detach().numpy())
     if not use_weights:
         lengths = nx.shortest_path_length(g)
     else:
